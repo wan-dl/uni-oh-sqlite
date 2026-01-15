@@ -1,0 +1,174 @@
+<template>
+    <view class="container">
+        <!-- Header -->
+        <view class="header">
+            <view class="back-btn" @click="goBack">
+                <text class="back-icon">←</text>
+            </view>
+            <text class="header-title">{{ settingsTitle }}</text>
+            <view class="header-placeholder"></view>
+        </view>
+
+        <!-- #ifdef APP -->
+        <scroll-view style="flex:1">
+        <!-- #endif -->
+        <!-- Settings List -->
+        <view class="settings-list">
+            <!-- Language Setting -->
+            <view class="setting-section">
+                <text class="section-label">{{ languageLabel }}</text>
+                <view class="option-group">
+                    <view
+                        class="option-item"
+                        :class="currentLang == 'zh-CN' ? 'option-active' : ''"
+                        @click="changeLang('zh-CN')"
+                    >
+                        <text class="option-text">{{ langZhLabel }}</text>
+                        <view v-if="currentLang == 'zh-CN'" class="check-mark">
+                            <text class="check-icon">✓</text>
+                        </view>
+                    </view>
+                    <view
+                        class="option-item"
+                        :class="currentLang == 'en-US' ? 'option-active' : ''"
+                        @click="changeLang('en-US')"
+                    >
+                        <text class="option-text">{{ langEnLabel }}</text>
+                        <view v-if="currentLang == 'en-US'" class="check-mark">
+                            <text class="check-icon">✓</text>
+                        </view>
+                    </view>
+                </view>
+            </view>
+        </view>
+        <!-- #ifdef APP -->
+        </scroll-view>
+        <!-- #endif -->
+    </view>
+</template>
+
+<script setup>
+    import { computed } from 'vue'
+    import { t, getLocale, setLocale, currentLocale } from '@/locale/i18n.uts'
+
+    // 使用 computed 实现响应式翻译
+    const settingsTitle = computed(() : string => t('settings.title'))
+    const languageLabel = computed(() : string => t('settings.language'))
+    const langZhLabel = computed(() : string => t('settings.langZh'))
+    const langEnLabel = computed(() : string => t('settings.langEn'))
+
+    const currentLang = currentLocale
+
+    const goBack = () => {
+        uni.navigateBack({})
+    }
+
+    const changeLang = (lang : string) => {
+        setLocale(lang)
+    }
+</script>
+
+<style>
+    .container {
+        flex: 1;
+        height: 100%;
+        background-color: #09090B;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .header {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 50px 20px 20px 20px;
+        background-color: #18181B;
+    }
+
+    .back-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background-color: #27272A;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .back-icon {
+        font-size: 20px;
+        color: #FAFAFA;
+    }
+
+    .header-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #FAFAFA;
+    }
+
+    .header-placeholder {
+        width: 40px;
+    }
+
+    .settings-list {
+        padding: 24px 20px;
+    }
+
+    .setting-section {
+        margin-bottom: 24px;
+    }
+
+    .section-label {
+        font-size: 13px;
+        color: #71717A;
+        font-weight: 600;
+        margin-bottom: 12px;
+        letter-spacing: 0.5px;
+    }
+
+    .option-group {
+        background-color: #18181B;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #27272A;
+    }
+
+    .option-item {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #27272A;
+    }
+
+    .option-item:last-child {
+        border-bottom-width: 0;
+    }
+
+    .option-active {
+        background-color: rgba(124, 58, 237, 0.1);
+    }
+
+    .option-text {
+        font-size: 16px;
+        color: #FAFAFA;
+    }
+
+    .check-mark {
+        width: 24px;
+        height: 24px;
+        border-radius: 12px;
+        background-color: #7C3AED;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .check-icon {
+        font-size: 14px;
+        color: #FFFFFF;
+        font-weight: 700;
+    }
+</style>

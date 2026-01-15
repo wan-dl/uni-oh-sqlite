@@ -1,0 +1,214 @@
+/**
+ * users 表定义和操作
+ *
+ * 表结构:
+ * - id: 主键自增
+ * - name: 用户名
+ * - age: 年龄
+ * - gender: 性别
+ * - score: 分数
+ * - created_at: 创建时间
+ */
+
+import { Database, TableDefinition, SqlArgs } from '@/utils/db'
+
+// ============================================
+// 表定义
+// ============================================
+
+/** 表名 */
+export const TABLE_NAME = 'users'
+
+/** iOS存储键名 */
+export const STORAGE_KEY = 'user_list'
+
+/** 数据库名称 */
+export const DB_NAME = 'user_db'
+
+/** 建表SQL */
+export const CREATE_TABLE_SQL = `
+    CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        age INTEGER DEFAULT 0,
+        gender TEXT DEFAULT 'unknown',
+        score INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+`
+
+/** 表定义 */
+export const UsersTableDefinition: TableDefinition = {
+    tableName: TABLE_NAME,
+    createTableSql: CREATE_TABLE_SQL,
+    storageKey: STORAGE_KEY
+}
+
+// ============================================
+// SQL语句
+// ============================================
+
+/** 插入用户 */
+export const SQL_INSERT = `INSERT INTO ${TABLE_NAME} (name, age, gender, score, created_at) VALUES (?, ?, ?, ?, ?)`
+
+/** 查询所有用户(按ID倒序，带限制) */
+export const SQL_SELECT_ALL = `SELECT * FROM ${TABLE_NAME} ORDER BY id DESC LIMIT ?`
+
+/** 根据ID查询用户 */
+export const SQL_SELECT_BY_ID = `SELECT * FROM ${TABLE_NAME} WHERE id = ?`
+
+/** 根据ID删除用户 */
+export const SQL_DELETE_BY_ID = `DELETE FROM ${TABLE_NAME} WHERE id = ?`
+
+/** 清空表 */
+export const SQL_DELETE_ALL = `DELETE FROM ${TABLE_NAME}`
+
+/** 删除表 */
+export const SQL_DROP_TABLE = `DROP TABLE IF EXISTS ${TABLE_NAME}`
+
+// ============================================
+// 数据库实例
+// ============================================
+
+/** 数据库实例 */
+const db = new Database(DB_NAME, STORAGE_KEY)
+
+// ============================================
+// 操作函数
+// ============================================
+
+/**
+ * 初始化数据库
+ */
+export function initDatabase(): boolean {
+    return db.init(CREATE_TABLE_SQL)
+}
+
+/**
+ * 保存用户信息
+ */
+export function saveUser(
+    name: string,
+    age: number,
+    gender: string,
+    score: number
+): boolean {
+    const now = new Date().toISOString()
+
+    // #ifdef APP-ANDROID
+    const args: SqlArgs = [name, age, gender, score, now]
+    return db.execute(SQL_INSERT, args)
+    // #endif
+
+    // #ifdef APP-IOS
+    const data: UTSJSONObject = {
+        name: name,
+        age: age,
+        gender: gender,
+        score: score,
+        created_at: now
+    }
+    return db.insert(data)
+    // #endif
+
+    // #ifndef APP
+    return false
+    // #endif
+}
+
+/**
+ * 查询用户列表
+ */
+export function getUsers(limit: number = 50): UTSJSONObject[] {
+    // #ifdef APP-ANDROID
+    const args: SqlArgs = [limit]
+    return db.query(SQL_SELECT_ALL, args)
+    // #endif
+
+    // #ifdef APP-IOS
+    const list = db.query()
+    return list.slice(0, limit)
+    // #endif
+
+    // #ifndef APP
+    return []
+    // #endif
+}
+
+/**
+ * 根据ID查询用户
+ */
+export function getUserById(id: number): UTSJSONObject | null {
+    // #ifdef APP-ANDROID
+    const args: SqlArgs = [id]
+    const results = db.query(SQL_SELECT_BY_ID, args)
+    return results.length > 0 ? results[0] : null
+    // #endif
+
+    // #ifdef APP-IOS
+    const list = db.query()
+    const filtered = list.filter((item: UTSJSONObject): boolean => item['id'] == id)
+    return filtered.length > 0 ? filtered[0] : null
+    // #endif
+
+    // #ifndef APP
+    return null
+    // #endif
+}
+
+/**
+ * 删除用户
+ */
+export function deleteUser(id: number): boolean {
+    // #ifdef APP-ANDROID
+    const args: SqlArgs = [id]
+    return db.execute(SQL_DELETE_BY_ID, args)
+    // #endif
+
+    // #ifdef APP-IOS
+    return db.delete(id)
+    // #endif
+
+    // #ifndef APP
+    return false
+    // #endif
+}
+
+/**
+ * 清空用户列表
+ */
+export function clearUsers(): boolean {
+    // #ifdef APP-ANDROID
+    return db.clear(TABLE_NAME)
+    // #endif
+
+    // #ifdef APP-IOS
+    return db.clear()
+    // #endif
+
+    // #ifndef APP
+    return false
+    // #endif
+}
+
+/**
+ * 重置数据库
+ * 删除表并重新创建，清空所有数据并重置自增ID
+ */
+export function resetDatabase(): boolean {
+    return db.reset(TABLE_NAME, CREATE_TABLE_SQL)
+}
+
+/**
+ * 关闭数据库
+ */
+export function closeDb(): boolean {
+    return db.close()
+}
+
+/**
+ * 获取数据库实例 (用于自定义操作)
+ */
+export function getDatabase(): Database {
+    return db
+}

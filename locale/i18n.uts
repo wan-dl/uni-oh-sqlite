@@ -1,0 +1,143 @@
+import { ref } from 'vue'
+
+// 当前语言
+export const currentLocale = ref<string>('zh-CN')
+
+// 中文语言包
+const zhCN : UTSJSONObject = {
+    // 通用
+    'app.title': 'SQLite',
+    'status.online': 'LIVE',
+    'status.offline': 'OFF',
+
+    // 操作按钮
+    'btn.init': '初始化',
+    'btn.newRecord': '新增记录',
+    'btn.refresh': '查询',
+    'btn.clearAll': '清空',
+    'btn.resetDb': '↻ 重置数据库',
+
+    // 列表
+    'list.title': '记录列表',
+    'list.empty': '暂无数据',
+    'list.emptyHint': '点击"新增记录"开始',
+    'list.scoreUnit': '分',
+    'list.ageUnit': '岁',
+
+    // 性别
+    'gender.male': '男',
+    'gender.female': '女',
+
+    // 消息
+    'msg.initSuccess': '系统初始化成功',
+    'msg.initFailed': '初始化失败',
+    'msg.queryEmpty': '查询完成，暂无数据',
+    'msg.addSuccess': '已添加用户',
+    'msg.addFailed': '添加失败',
+    'msg.deleteSuccess': '已删除用户',
+    'msg.deleteFailed': '删除失败',
+    'msg.clearSuccess': '已清空所有数据',
+    'msg.clearFailed': '清空失败',
+    'msg.resetSuccess': '数据库已重置',
+    'msg.resetFailed': '重置失败',
+
+    // 弹窗
+    'modal.clearTitle': '确认清空',
+    'modal.clearContent': '确定要删除所有记录吗？',
+    'modal.resetTitle': '危险操作',
+    'modal.resetContent': '确定要重置数据库吗？所有数据将丢失。',
+    'modal.resetConfirm': '重置',
+    'modal.cancel': '取消',
+    'modal.confirm': '确定',
+
+    // 设置页
+    'settings.title': '设置',
+    'settings.language': '语言',
+    'settings.langZh': '中文',
+    'settings.langEn': 'English'
+}
+
+// 英文语言包
+const enUS : UTSJSONObject = {
+    // General
+    'app.title': 'SQLite',
+    'status.online': 'LIVE',
+    'status.offline': 'OFF',
+
+    // Action Buttons
+    'btn.init': 'Initialize',
+    'btn.newRecord': 'New Record',
+    'btn.refresh': 'Query',
+    'btn.clearAll': 'Clear All',
+    'btn.resetDb': '↻ Reset Database',
+
+    // List
+    'list.title': 'Records',
+    'list.empty': 'No Data Yet',
+    'list.emptyHint': 'Tap "New Record" to get started',
+    'list.scoreUnit': 'pts',
+    'list.ageUnit': 'yo',
+
+    // Gender
+    'gender.male': 'M',
+    'gender.female': 'F',
+
+    // Messages
+    'msg.initSuccess': 'Database initialized',
+    'msg.initFailed': 'Initialization failed',
+    'msg.queryEmpty': 'Query complete, no data',
+    'msg.addSuccess': 'User added',
+    'msg.addFailed': 'Failed to add',
+    'msg.deleteSuccess': 'User deleted',
+    'msg.deleteFailed': 'Failed to delete',
+    'msg.clearSuccess': 'All data cleared',
+    'msg.clearFailed': 'Failed to clear',
+    'msg.resetSuccess': 'Database reset',
+    'msg.resetFailed': 'Failed to reset',
+
+    // Modals
+    'modal.clearTitle': 'Confirm Clear',
+    'modal.clearContent': 'Are you sure you want to delete all records?',
+    'modal.resetTitle': 'Danger',
+    'modal.resetContent': 'Are you sure you want to reset? All data will be lost.',
+    'modal.resetConfirm': 'Reset',
+    'modal.cancel': 'Cancel',
+    'modal.confirm': 'Confirm',
+
+    // Settings
+    'settings.title': 'Settings',
+    'settings.language': 'Language',
+    'settings.langZh': '中文',
+    'settings.langEn': 'English'
+}
+
+// 翻译函数
+export function t(key : string) : string {
+    const locale = currentLocale.value == 'en-US' ? enUS : zhCN
+    const value = locale[key]
+    if (value != null) {
+        return value as string
+    }
+    return key
+}
+
+// 设置语言
+export function setLocale(locale : string) : void {
+    if (locale == 'zh-CN' || locale == 'en-US') {
+        currentLocale.value = locale
+        uni.setStorageSync('app_locale', locale)
+    }
+}
+
+// 初始化语言
+export function initLocale() : void {
+    const saved = uni.getStorageSync('app_locale') as string
+    if (saved == 'zh-CN' || saved == 'en-US') {
+        currentLocale.value = saved
+    }
+}
+
+// 获取当前语言
+export function getLocale() : string {
+    return currentLocale.value
+}

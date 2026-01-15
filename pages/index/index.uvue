@@ -1,0 +1,890 @@
+<template>
+    <view class="container">
+        <!-- Background Gradient 100 layers -->
+        <view class="bg-gradient">
+            <view v-for="i in 100" :key="i" class="bg-layer" :style="{ backgroundColor: getGradientColor(i) }"></view>
+        </view>
+        <!-- Gradient Header -->
+        <view class="header-section">
+            <view class="header-bg"></view>
+            <view class="header-content">
+                <view class="brand-area">
+                    <view class="brand-text">
+                        <text class="app-title">{{ appTitle }}</text>
+                    </view>
+                </view>
+                <view class="header-right">
+                    <view class="status-chip" :class="isInitialized ? 'chip-online' : 'chip-offline'">
+                        <view class="chip-glow"></view>
+                        <text class="chip-text">{{ isInitialized ? statusOnline : statusOffline }}</text>
+                    </view>
+                    <!-- <view class="settings-btn" @click="openSettings"> -->
+                    <view class="" @click="openSettings">
+                        <!-- <text class="settings-icon">⚙</text> -->
+                        <image src="/static/more.svg"  style="height: 30px;width: 30px; margin-left: 10px;" />
+                    </view>
+                </view>
+            </view>
+        </view>
+
+        <!-- Floating Action Panel -->
+        <view class="action-panel">
+            <view class="panel-inner">
+                <view class="action-row">
+                    <view class="action-btn btn-primary" @click="handleInit">
+                        <text class="btn-icon">⚡</text>
+                        <text class="btn-label">{{ btnInit }}</text>
+                    </view>
+                    <view class="action-btn btn-accent" @click="handleSave">
+                        <text class="btn-icon" style="font-size: 24px;">+</text>
+                        <text class="btn-label">{{ btnNewRecord }}</text>
+                    </view>
+                </view>
+                <view class="action-row">
+                    <view class="action-btn btn-secondary" @click="handleQuery">
+                        <text class="btn-icon">◎</text>
+                        <text class="btn-label">{{ btnRefresh }}</text>
+                    </view>
+                    <view class="action-btn btn-ghost" @click="handleClear">
+                        <text class="btn-icon">⊘</text>
+                        <text class="btn-label">{{ btnClearAll }}</text>
+                    </view>
+                </view>
+            </view>
+            <view class="reset-strip" @click="handleReset">
+                <text class="reset-label">{{ btnResetDb }}</text>
+            </view>
+        </view>
+
+        <!-- Toast Notification -->
+        <view class="toast-container" v-if="resultMsg">
+            <view class="toast-box">
+                <view class="toast-indicator"></view>
+                <text class="toast-text">{{ resultMsg }}</text>
+            </view>
+        </view>
+
+        <!-- #ifdef APP -->
+        <scroll-view style="flex:1">
+        <!-- #endif -->
+        <!-- Records Section -->
+        <view class="records-section">
+            <view class="section-header">
+                <view class="header-left">
+                    <text class="section-title">{{ listTitle }}</text>
+                    <view class="count-badge">
+                        <text class="count-num">{{ userList.length }}</text>
+                    </view>
+                </view>
+                <view class="header-line"></view>
+            </view>
+
+            <view class="records-list">
+                <view v-for="(item, index) in userList" :key="index" class="record-card">
+                    <view class="card-accent" :class="getAccentClass(item['score'] as number)"></view>
+                    <view class="card-body">
+                        <view class="user-avatar" :class="getAvatarClass(index)">
+                            <text class="avatar-letter">{{ (item['name'] as string).substring(0, 1) }}</text>
+                        </view>
+                        <view class="user-details">
+                            <view class="name-row">
+                                <text class="user-name">{{ item['name'] }}</text>
+                                <text class="user-badge">#{{ item['id'] }}</text>
+                            </view>
+                            <view class="meta-row">
+                                <view class="meta-chip">
+                                    <text class="meta-value">{{ getGenderText(item['gender'] as string) }}</text>
+                                </view>
+                                <view class="meta-chip">
+                                    <text class="meta-value">{{ item['age'] }}{{ ageUnit }}</text>
+                                </view>
+                            </view>
+                        </view>
+                        <view class="score-area">
+                            <text class="score-value" :class="getScoreClass(item['score'] as number)">{{ item['score'] }}</text>
+                            <text class="score-label">{{ scoreUnit }}</text>
+                        </view>
+                        <view class="delete-btn" @click="handleDelete(item['id'] as number)">
+                            <text class="delete-x">×</text>
+                        </view>
+                    </view>
+                </view>
+
+                <view v-if="userList.length == 0" class="empty-state">
+                    <view class="empty-visual">
+                        <view class="empty-ring ring-1"></view>
+                        <view class="empty-ring ring-2"></view>
+                        <view class="empty-core">
+                            <text class="empty-icon">∅</text>
+                        </view>
+                    </view>
+                    <text class="empty-title">{{ listEmpty }}</text>
+                    <text class="empty-hint">{{ listEmptyHint }}</text>
+                </view>
+
+                <view class="list-end"></view>
+            </view>
+        </view>
+        <!-- #ifdef APP -->
+        </scroll-view>
+        <!-- #endif -->
+    </view>
+</template>
+
+<script setup>
+    import { ref, computed } from 'vue'
+    import { initDatabase, saveUser, getUsers, deleteUser, clearUsers, resetDatabase } from '@/utils/tables/users'
+    import { t, initLocale } from '@/locale/i18n.uts'
+
+    // 初始化语言
+    initLocale()
+
+    const resultMsg = ref<string>('')
+    const userList = ref<UTSJSONObject[]>([])
+    const isInitialized = ref<boolean>(false)
+    let msgTimer : number | null = null
+
+    // i18n 响应式文本
+    const appTitle = computed(() : string => t('app.title'))
+    const statusOnline = computed(() : string => t('status.online'))
+    const statusOffline = computed(() : string => t('status.offline'))
+    const btnInit = computed(() : string => t('btn.init'))
+    const btnNewRecord = computed(() : string => t('btn.newRecord'))
+    const btnRefresh = computed(() : string => t('btn.refresh'))
+    const btnClearAll = computed(() : string => t('btn.clearAll'))
+    const btnResetDb = computed(() : string => t('btn.resetDb'))
+    const listTitle = computed(() : string => t('list.title'))
+    const listEmpty = computed(() : string => t('list.empty'))
+    const listEmptyHint = computed(() : string => t('list.emptyHint'))
+    const scoreUnit = computed(() : string => t('list.scoreUnit'))
+    const ageUnit = computed(() : string => t('list.ageUnit'))
+
+    // 辅助函数：计算渐变颜色
+    const getGradientColor = (index : number) : string => {
+        // 从 #8B3A5C (139,58,92) 玫瑰粉 到 #0D0510 (13,5,16) 深紫色
+        const startR = 139, startG = 58, startB = 92
+        const endR = 13, endG = 5, endB = 16
+        const t = (index - 1) / 99
+        const r = Math.round(startR + (endR - startR) * t)
+        const g = Math.round(startG + (endG - startG) * t)
+        const b = Math.round(startB + (endB - startB) * t)
+        const toHex = (n : number) : string => n.toString(16).padStart(2, '0')
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+    }
+
+    // 辅助函数：显示消息并定时隐藏
+    const showMsg = (msg : string) => {
+        resultMsg.value = msg
+        if (msgTimer != null) {
+            clearTimeout(msgTimer as number)
+        }
+        msgTimer = setTimeout(() => {
+            resultMsg.value = ''
+            msgTimer = null
+        }, 2000)
+    }
+
+    // 辅助函数：格式化时间
+    const formatTime = (isoString : string) : string => {
+        if (isoString == '') return ''
+        const date = new Date(isoString)
+        const h = date.getHours().toString().padStart(2, '0')
+        const m = date.getMinutes().toString().padStart(2, '0')
+        const s = date.getSeconds().toString().padStart(2, '0')
+        return `${h}:${m}:${s}`
+    }
+
+    // 辅助函数：获取分数样式
+    const getScoreClass = (score : number) : string => {
+        if (score >= 90) return 'score-excellent'
+        if (score >= 60) return 'score-good'
+        return 'score-low'
+    }
+
+    // 辅助函数：获取头像样式
+    const getAvatarClass = (index : number) : string => {
+        const classes = ['avatar-purple', 'avatar-blue', 'avatar-teal', 'avatar-orange']
+        return classes[index % 4]
+    }
+
+    // 辅助函数：获取卡片强调色
+    const getAccentClass = (score : number) : string => {
+        if (score >= 90) return 'accent-excellent'
+        if (score >= 60) return 'accent-good'
+        return 'accent-low'
+    }
+
+    // 辅助函数：获取性别文本
+    const getGenderText = (gender : string) : string => {
+        if (gender == '男') return t('gender.male')
+        if (gender == '女') return t('gender.female')
+        return gender
+    }
+
+    // 打开设置页面
+    const openSettings = () => {
+        uni.navigateTo({ url: '/pages/settings/settings' })
+    }
+
+    // 查询记录
+    const handleQuery = () => {
+        const list = getUsers(100)
+        userList.value = list
+        // 查询成功说明数据库已就绪
+        if (list.length > 0) {
+            isInitialized.value = true
+        } else {
+            showMsg(t('msg.queryEmpty'))
+        }
+    }
+
+    // 初始化数据库
+    const handleInit = () => {
+        const success = initDatabase()
+        isInitialized.value = success
+        showMsg(success ? t('msg.initSuccess') : t('msg.initFailed'))
+        if (success) {
+            handleQuery()
+        }
+    }
+
+    // 新增随机用户
+    const handleSave = () => {
+        if (!isInitialized.value) {
+            handleInit()
+        }
+
+        const names = ["Alex", "Bella", "Chris", "Diana", "Eric", "Fiona", "George", "Helen", "Ivan", "Julia"]
+        const name = names[Math.floor(Math.random() * names.length)]
+        const age = Math.floor(Math.random() * 40) + 18 // 18-57
+        const gender = Math.random() > 0.5 ? '男' : '女'
+        const score = Math.floor(Math.random() * 101) // 0-100
+
+        const success = saveUser(name, age, gender, score)
+        if (success) {
+            showMsg(`${t('msg.addSuccess')}: ${name}`)
+            handleQuery()
+        } else {
+            showMsg(t('msg.addFailed'))
+        }
+    }
+
+    // 删除用户
+    const handleDelete = (id : number) => {
+        const success = deleteUser(id)
+        if (success) {
+            showMsg(`${t('msg.deleteSuccess')} #${id}`)
+            userList.value = userList.value.filter((item) : boolean => item['id'] != id)
+        } else {
+            showMsg(t('msg.deleteFailed'))
+        }
+    }
+
+    // 清空所有
+    const handleClear = () => {
+        uni.showModal({
+            title: t('modal.clearTitle'),
+            content: t('modal.clearContent'),
+            confirmColor: '#ef4444',
+            success: (res) => {
+                if (res.confirm) {
+                    const success = clearUsers()
+                    if (success) {
+                        showMsg(t('msg.clearSuccess'))
+                        userList.value = []
+                    } else {
+                        showMsg(t('msg.clearFailed'))
+                    }
+                }
+            }
+        })
+    }
+
+    // 重置数据库
+    const handleReset = () => {
+        uni.showModal({
+            title: t('modal.resetTitle'),
+            content: t('modal.resetContent'),
+            confirmColor: '#ef4444',
+            confirmText: t('modal.resetConfirm'),
+            success: (res) => {
+                if (res.confirm) {
+                    const success = resetDatabase()
+                    if (success) {
+                        showMsg(t('msg.resetSuccess'))
+                        userList.value = []
+                        isInitialized.value = true
+                    } else {
+                        showMsg(t('msg.resetFailed'))
+                    }
+                }
+            }
+        })
+    }
+</script>
+
+<style>
+    /* ========== Global ========== */
+    .container {
+        flex: 1;
+        height: 100%;
+        background-color: #09090B;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    /* ========== Background Gradient ========== */
+    .bg-gradient {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .bg-layer { flex: 1; }
+
+    /* ========== Header ========== */
+    .header-section {
+        padding: 50px 24px 90px 24px;
+        background-color: transparent;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .header-bg {
+        position: absolute;
+        top: -100px;
+        right: -100px;
+        width: 300px;
+        height: 300px;
+        border-radius: 150px;
+        background-color: #7C3AED;
+        opacity: 0.12;
+    }
+
+    .header-content {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .brand-area {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .logo-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background-color: #7C3AED;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 14px;
+    }
+
+    .logo-icon {
+        font-size: 24px;
+        color: #FFFFFF;
+    }
+
+    .brand-text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .app-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: #FAFAFA;
+        letter-spacing: -0.5px;
+    }
+
+    .app-subtitle {
+        font-size: 12px;
+        color: #71717A;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+
+    /* Header Right */
+    .header-right {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .settings-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        /* background-color: #7C3AED; */
+        background-color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 12px;
+    }
+
+    .settings-icon {
+        /* font-size: 18px; */
+        /* color: #FFFFFF; */
+    }
+
+    /* Status Chip */
+    .status-chip {
+        padding: 6px 14px;
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .chip-online {
+        background-color: rgba(167, 139, 250, 0.15);
+        color: #FFFFFF;
+    }
+
+    .chip-offline {
+        background-color: rgba(113, 113, 122, 0.2);
+    }
+
+    .chip-glow {
+        position: absolute;
+        top: 50%;
+        left: 12px;
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
+        margin-top: -3px;
+    }
+
+    .chip-online .chip-glow {
+        background-color: #A78BFA;
+    }
+
+    .chip-offline .chip-glow {
+        background-color: #71717A;
+    }
+
+    .chip-text {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-left: 12px;
+    }
+
+    .chip-online .chip-text {
+        color: #A78BFA;
+    }
+
+    .chip-offline .chip-text {
+        color: #FFFFFF;
+    }
+
+    /* ========== Action Panel ========== */
+    .action-panel {
+        margin: -60px 20px 20px 20px;
+        background-color: rgba(90, 50, 100, 0.35);
+        border-radius: 24px;
+        overflow: hidden;
+        border: 1px solid rgba(90, 50, 100, 0.35);
+    }
+
+    .panel-inner {
+        padding: 20px;
+    }
+
+    .action-row {
+        display: flex;
+        flex-direction: row;
+        margin-bottom: 12px;
+    }
+
+    .action-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .action-btn {
+        flex: 1;
+        height: 56px;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+    }
+
+    .action-btn:last-child {
+        margin-right: 0;
+    }
+
+    .btn-primary {
+        background-color: rgba(90, 50, 100, 0.55);
+        border: none;
+    }
+
+    .btn-accent {
+        background-color: rgba(80, 40, 100, 0.45);
+        border: none;
+    }
+
+    .btn-secondary {
+        background-color: rgba(155, 125, 214, 0.15);
+        border: none;
+    }
+
+    .btn-ghost {
+        background-color: rgba(214, 111, 160, 0.12);
+        border: none;
+    }
+
+    .btn-icon {
+        font-size: 18px;
+        color: #FFFFFF;
+        margin-right: 8px;
+    }
+
+    .btn-ghost .btn-icon {
+        color: #A1A1AA;
+    }
+
+    .btn-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #FFFFFF;
+    }
+
+    .btn-ghost .btn-label {
+        color: #A1A1AA;
+    }
+
+    .reset-strip {
+        padding: 14px;
+        background-color: rgba(80, 40, 60, 0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-top: 1px solid rgba(80, 40, 60, 0.25);
+    }
+
+    .reset-label {
+        font-size: 12px;
+        color: #F87171;
+        font-weight: 600;
+    }
+
+    /* ========== Toast ========== */
+    .toast-container {
+        padding: 0 20px;
+        margin-bottom: 16px;
+    }
+
+    .toast-box {
+        background-color: rgba(90, 60, 100, 0.45);
+        border-radius: 12px;
+        padding: 14px 18px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        border: 1px solid rgba(90, 60, 100, 0.45);
+    }
+
+    .toast-indicator {
+        width: 4px;
+        height: 20px;
+        background-color: #A78BFA;
+        border-radius: 2px;
+        margin-right: 14px;
+    }
+
+    .toast-text {
+        font-size: 13px;
+        color: #E4E4E7;
+        font-weight: 500;
+    }
+
+    /* ========== Records Section ========== */
+    .records-section {
+        padding: 0 20px;
+    }
+
+    .section-header {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .header-left {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #FAFAFA;
+        margin-right: 10px;
+    }
+
+    .count-badge {
+        /* background-color: #7C3AED; */
+        padding: 4px 10px;
+        border-radius: 12px;
+    }
+
+    .count-num {
+        font-size: 12px;
+        font-weight: 700;
+        color: #FFFFFF;
+    }
+
+    .header-line {
+        flex: 1;
+        height: 1px;
+        /* background-color: #27272A; */
+        background-color: rgba(90, 60, 60, 0.55);
+        margin-left: 16px;
+    }
+
+    .records-list {
+        width: 100%;
+    }
+
+    /* ========== Record Card ========== */
+    .record-card {
+        /* background-color: #18181B; */
+        border-radius: 18px;
+        margin-bottom: 14px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: row;
+        border: 1px solid rgba(80, 40, 60, 0.25);
+    }
+
+    .card-accent {
+        width: 4px;
+    }
+
+    .accent-excellent {
+        background-color: #A78BFA;
+    }
+
+    .accent-good {
+        background-color: #8B5CF6;
+    }
+
+    .accent-low {
+        background-color: #6D28D9;
+    }
+
+    .card-body {
+        flex: 1;
+        padding: 16px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .user-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 14px;
+    }
+
+    .avatar-purple {
+        background-color: rgba(139, 92, 246, 0.2);
+    }
+
+    .avatar-blue {
+        background-color: rgba(124, 58, 237, 0.2);
+    }
+
+    .avatar-teal {
+        background-color: rgba(167, 139, 250, 0.2);
+    }
+
+    .avatar-orange {
+        background-color: rgba(109, 40, 217, 0.25);
+    }
+
+    .avatar-letter {
+        font-size: 18px;
+        font-weight: 700;
+        color: #E4E4E7;
+    }
+
+    .user-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .name-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+
+    .user-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #FAFAFA;
+        margin-right: 8px;
+    }
+
+    .user-badge {
+        font-size: 11px;
+        color: #71717A;
+        /* background-color: #27272A; */
+        padding: 2px 6px;
+        border-radius: 6px;
+    }
+
+    .meta-row {
+        display: flex;
+        flex-direction: row;
+    }
+
+    .meta-chip {
+        /* background-color: #27272A; */
+        padding: 4px 10px;
+        border-radius: 8px;
+        margin-right: 8px;
+    }
+
+    .meta-value {
+        font-size: 11px;
+        color: #A1A1AA;
+        font-weight: 500;
+    }
+
+    .score-area {
+        display: flex;
+        flex-direction: row;
+        /* #ifndef APP */
+        align-items: baseline;
+        /* #endif */
+        margin-right: 14px;
+    }
+
+    .score-value {
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .score-excellent {
+        color: #A78BFA;
+    }
+
+    .score-good {
+        color: #8B5CF6;
+    }
+
+    .score-low {
+        color: #7C3AED;
+    }
+
+    .score-label {
+        font-size: 11px;
+        color: #71717A;
+        margin-left: 2px;
+    }
+
+    .delete-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        background-color: rgba(244, 63, 94, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .delete-x {
+        font-size: 20px;
+        color: #FB7185;
+        font-weight: 400;
+    }
+
+    /* ========== Empty State ========== */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 0;
+    }
+
+    .empty-visual {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+    }
+
+    .empty-ring {
+        position: absolute;
+        border-radius: 100px;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .ring-1 {
+        width: 80px;
+        height: 80px;
+    }
+
+    .ring-2 {
+        width: 100px;
+        height: 100px;
+    }
+
+    .empty-core {
+        width: 56px;
+        height: 56px;
+        border-radius: 28px;
+        background-color: #18181B;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .empty-icon {
+        font-size: 24px;
+        color: #8B5CF6;
+    }
+
+    .empty-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #FAFAFA;
+        margin-bottom: 8px;
+    }
+
+    .empty-hint {
+        font-size: 13px;
+        color: #71717A;
+    }
+
+    .list-end {
+        height: 40px;
+    }
+</style>

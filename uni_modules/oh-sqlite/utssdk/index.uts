@@ -1,0 +1,6 @@
+/**
+ * SQLite 数据库插件
+ * 仅支持 Android 和 iOS
+ */
+
+export { openDatabase, closeDatabase, executeSql, querySql, isOpen } from "./interface.uts"

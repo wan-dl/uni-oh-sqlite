@@ -1,0 +1,158 @@
+import Context from "android.content.Context";
+import SQLiteDatabase from "android.database.sqlite.SQLiteDatabase";
+import Cursor from "android.database.Cursor";
+
+// 数据库缓存
+const databases = new Map<string, SQLiteDatabase>()
+
+/**
+ * 获取数据库路径
+ */
+function getDatabasePath(name: string): string {
+    const context = UTSAndroid.getAppContext() as Context
+    return context.getDatabasePath(name + ".db").getAbsolutePath()
+}
+
+/**
+ * 打开数据库
+ */
+export function openDatabase(name: string): boolean {
+    try {
+        if (databases.has(name)) {
+            return true
+        }
+        const path = getDatabasePath(name)
+        const db = SQLiteDatabase.openOrCreateDatabase(path, null)
+        databases.set(name, db)
+        return true
+    } catch (e) {
+        console.error("openDatabase error:", e)
+        return false
+    }
+}
+
+/**
+ * 关闭数据库
+ */
+export function closeDatabase(name: string): boolean {
+    try {
+        const db = databases.get(name)
+        if (db != null) {
+            db.close()
+            databases.delete(name)
+        }
+        return true
+    } catch (e) {
+        console.error("closeDatabase error:", e)
+        return false
+    }
+}
+
+/**
+ * 执行SQL（增删改）
+ */
+export function executeSql(name: string, sql: string, args: (string | number | null)[]): UTSJSONObject {
+    const result: UTSJSONObject = {
+        success: false,
+        rowsAffected: 0
+    }
+    
+    try {
+        const db = databases.get(name)
+        if (db == null) {
+            result["error"] = "Database not opened"
+            return result
+        }
+        
+        if (args.length > 0) {
+            const bindArgs: Array<String> = []
+            for (let i = 0; i < args.length; i++) {
+                const arg = args[i]
+                if (arg == null) {
+                    bindArgs.push("")
+                } else {
+                    bindArgs.push(arg.toString())
+                }
+            }
+            db.execSQL(sql, bindArgs.toTypedArray())
+        } else {
+            db.execSQL(sql)
+        }
+        
+        result["success"] = true
+        result["rowsAffected"] = 1
+        return result
+    } catch (e) {
+        result["error"] = (e as Error).message
+        return result
+    }
+}
+
+/**
+ * 查询SQL
+ */
+export function querySql(name: string, sql: string, args: (string | number | null)[]): UTSJSONObject {
+    const result: UTSJSONObject = {
+        success: false,
+        data: [] as UTSJSONObject[]
+    }
+    
+    try {
+        const db = databases.get(name)
+        if (db == null) {
+            result["error"] = "Database not opened"
+            return result
+        }
+        
+        let selectionArgs: Array<String> | null = null
+        if (args.length > 0) {
+            const tempArgs: Array<String> = []
+            for (let i = 0; i < args.length; i++) {
+                const arg = args[i]
+                tempArgs.push(arg != null ? arg.toString() : "")
+            }
+            selectionArgs = tempArgs
+        }
+        
+        const cursor = db.rawQuery(sql, selectionArgs != null ? selectionArgs.toTypedArray() : null)
+        const data: UTSJSONObject[] = []
+        
+        if (cursor.moveToFirst()) {
+            do {
+                const row: UTSJSONObject = {}
+                const columnCount: Int = cursor.getColumnCount()
+                for (let i: Int = 0; i < columnCount; i++) {
+                    const columnName = cursor.getColumnName(i)
+                    const columnType: Int = cursor.getType(i)
+                    
+                    if (columnType == Cursor.FIELD_TYPE_NULL) {
+                        row[columnName] = null
+                    } else if (columnType == Cursor.FIELD_TYPE_INTEGER) {
+                        row[columnName] = cursor.getLong(i)
+                    } else if (columnType == Cursor.FIELD_TYPE_FLOAT) {
+                        row[columnName] = cursor.getDouble(i)
+                    } else {
+                        row[columnName] = cursor.getString(i)
+                    }
+                }
+                data.push(row)
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        
+        result["success"] = true
+        result["data"] = data
+        return result
+    } catch (e) {
+        result["error"] = (e as Error).message
+        return result
+    }
+}
+
+/**
+ * 检查数据库是否已打开
+ */
+export function isOpen(name: string): boolean {
+    const db = databases.get(name)
+    return db != null && db.isOpen()
+}

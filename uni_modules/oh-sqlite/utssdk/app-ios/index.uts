@@ -1,0 +1,185 @@
+import { FileManager, URL } from "Foundation"
+import { SQLite3, sqlite3_open, sqlite3_close, sqlite3_exec, sqlite3_prepare_v2, sqlite3_step, sqlite3_finalize, sqlite3_column_count, sqlite3_column_name, sqlite3_column_type, sqlite3_column_int64, sqlite3_column_double, sqlite3_column_text, sqlite3_bind_text, sqlite3_bind_int64, sqlite3_bind_double, sqlite3_bind_null, SQLITE_OK, SQLITE_ROW, SQLITE_DONE, SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_TEXT, SQLITE_NULL } from "SQLite3"
+
+// 数据库缓存
+const databases = new Map<string, OpaquePointer>()
+
+/**
+ * 获取数据库路径
+ */
+function getDatabasePath(name: string): string {
+    const fileManager = FileManager.default
+    const paths = fileManager.urls(for = FileManager.SearchPathDirectory.documentDirectory, in = FileManager.SearchPathDomainMask.userDomainMask)
+    const documentsDirectory = paths[0]
+    return documentsDirectory.appendingPathComponent(name + ".db").path
+}
+
+/**
+ * 打开数据库
+ */
+export function openDatabase(name: string): boolean {
+    if (databases.has(name)) {
+        return true
+    }
+    
+    const path = getDatabasePath(name)
+    let db: OpaquePointer | null = null
+    
+    const result = sqlite3_open(path, db)
+    if (result == SQLITE_OK && db != null) {
+        databases.set(name, db!)
+        return true
+    }
+    return false
+}
+
+/**
+ * 关闭数据库
+ */
+export function closeDatabase(name: string): boolean {
+    const db = databases.get(name)
+    if (db == null) {
+        return true
+    }
+    
+    const result = sqlite3_close(db)
+    if (result == SQLITE_OK) {
+        databases.delete(name)
+        return true
+    }
+    return false
+}
+
+/**
+ * 执行SQL（增删改）
+ */
+export function executeSql(name: string, sql: string, args: (string | number | null)[]): UTSJSONObject {
+    const result: UTSJSONObject = {
+        success: false,
+        rowsAffected: 0
+    }
+    
+    const db = databases.get(name)
+    if (db == null) {
+        result["error"] = "Database not opened"
+        return result
+    }
+    
+    let statement: OpaquePointer | null = null
+    
+    if (sqlite3_prepare_v2(db, sql, -1, statement, null) == SQLITE_OK) {
+        // 绑定参数
+        for (let index = 0; index < args.length; index++) {
+            const paramIndex = index + 1
+            const arg = args[index]
+            if (arg == null) {
+                sqlite3_bind_null(statement, paramIndex)
+            } else if (typeof arg == 'number') {
+                if (Number.isInteger(arg)) {
+                    sqlite3_bind_int64(statement, paramIndex, arg as Int64)
+                } else {
+                    sqlite3_bind_double(statement, paramIndex, arg)
+                }
+            } else if (typeof arg == 'string') {
+                sqlite3_bind_text(statement, paramIndex, arg, -1, null)
+            }
+        }
+        
+        const stepResult = sqlite3_step(statement)
+        if (stepResult == SQLITE_DONE || stepResult == SQLITE_ROW) {
+            result["success"] = true
+            result["rowsAffected"] = 1
+        } else {
+            result["error"] = "Execute failed"
+        }
+    } else {
+        result["error"] = "Prepare statement failed"
+    }
+    
+    sqlite3_finalize(statement)
+    return result
+}
+
+/**
+ * 查询SQL
+ */
+export function querySql(name: string, sql: string, args: (string | number | null)[]): UTSJSONObject {
+    const result: UTSJSONObject = {
+        success: false,
+        data: [] as UTSJSONObject[]
+    }
+    
+    const db = databases.get(name)
+    if (db == null) {
+        result["error"] = "Database not opened"
+        return result
+    }
+    
+    let statement: OpaquePointer | null = null
+    const data: UTSJSONObject[] = []
+    
+    if (sqlite3_prepare_v2(db, sql, -1, statement, null) == SQLITE_OK) {
+        // 绑定参数
+        for (let index = 0; index < args.length; index++) {
+            const paramIndex = index + 1
+            const arg = args[index]
+            if (arg == null) {
+                sqlite3_bind_null(statement, paramIndex)
+            } else if (typeof arg == 'number') {
+                if (Number.isInteger(arg)) {
+                    sqlite3_bind_int64(statement, paramIndex, arg as Int64)
+                } else {
+                    sqlite3_bind_double(statement, paramIndex, arg)
+                }
+            } else if (typeof arg == 'string') {
+                sqlite3_bind_text(statement, paramIndex, arg, -1, null)
+            }
+        }
+        
+        const columnCount = sqlite3_column_count(statement)
+        
+        while (sqlite3_step(statement) == SQLITE_ROW) {
+            const row: UTSJSONObject = {}
+            
+            for (let i = 0; i < columnCount; i++) {
+                const columnNamePtr = sqlite3_column_name(statement, i)
+                const columnName = String(cString = columnNamePtr!)
+                const columnType = sqlite3_column_type(statement, i)
+                
+                if (columnType == SQLITE_INTEGER) {
+                    row[columnName] = sqlite3_column_int64(statement, i)
+                } else if (columnType == SQLITE_FLOAT) {
+                    row[columnName] = sqlite3_column_double(statement, i)
+                } else if (columnType == SQLITE_TEXT) {
+                    const text = sqlite3_column_text(statement, i)
+                    if (text != null) {
+                        row[columnName] = String(cString = text)
+                    }
+                } else if (columnType == SQLITE_NULL) {
+                    row[columnName] = null
+                } else {
+                    const text = sqlite3_column_text(statement, i)
+                    if (text != null) {
+                        row[columnName] = String(cString = text)
+                    }
+                }
+            }
+            data.push(row)
+        }
+        
+        result["success"] = true
+        result["data"] = data
+    } else {
+        result["error"] = "Prepare statement failed"
+    }
+    
+    sqlite3_finalize(statement)
+    return result
+}
+
+/**
+ * 检查数据库是否已打开
+ */
+export function isOpen(name: string): boolean {
+    return databases.has(name)
+}

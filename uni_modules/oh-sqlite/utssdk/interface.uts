@@ -1,0 +1,60 @@
+/**
+ * SQLite 数据库接口定义
+ */
+
+// 数据库配置
+export type DatabaseConfig = {
+    name: string        // 数据库名称
+    path?: string       // 可选路径
+}
+
+// 执行结果
+export type ExecuteResult = {
+    success: boolean
+    rowsAffected: number
+    insertId?: number
+    error?: string
+}
+
+// 查询结果
+export type QueryResult = {
+    success: boolean
+    data: any[]
+    error?: string
+}
+
+// 回调类型
+export type SuccessCallback = (result: any) => void
+export type FailCallback = (error: string) => void
+
+// 打开数据库选项
+export type OpenDatabaseOptions = {
+    name: string
+    success?: SuccessCallback
+    fail?: FailCallback
+}
+
+// 执行SQL选项
+export type ExecuteSqlOptions = {
+    name: string
+    sql: string
+    args?: any[]
+    success?: SuccessCallback
+    fail?: FailCallback
+}
+
+// 查询选项
+export type QuerySqlOptions = {
+    name: string
+    sql: string
+    args?: any[]
+    success?: SuccessCallback
+    fail?: FailCallback
+}
+
+// 关闭数据库选项
+export type CloseDatabaseOptions = {
+    name: string
+    success?: SuccessCallback
+    fail?: FailCallback
+}

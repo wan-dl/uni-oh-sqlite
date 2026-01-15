@@ -1,0 +1,22 @@
+{
+    "id": "oh-sqlite",
+    "displayName": "SQLite数据库插件",
+    "version": "1.0.0",
+    "description": "原生SQLite数据库操作，支持Android和iOS",
+    "keywords": ["sqlite", "database"],
+    "uni_modules": {
+        "type": "uts",
+        "dependencies": [],
+        "uni-ext-api": {
+            "uni": ""
+        },
+        "platforms": {
+            "app-android": {
+                "minVersion": "21"
+            },
+            "app-ios": {
+                "minVersion": "12.0"
+            }
+        }
+    }
+}
