@@ -21,7 +21,7 @@
                     <!-- <view class="settings-btn" @click="openSettings"> -->
                     <view class="" @click="openSettings">
                         <!-- <text class="settings-icon">⚙</text> -->
-                        <image src="/static/more.svg"  style="height: 30px;width: 30px; margin-left: 10px;" />
+                        <image src="/static/more.svg" style="height: 30px;width: 30px; margin-left: 10px;" />
                     </view>
                 </view>
             </view>
@@ -31,27 +31,27 @@
         <view class="action-panel">
             <view class="panel-inner">
                 <view class="action-row">
-                    <view class="action-btn btn-primary" @click="handleInit">
+                    <view class="action-btn btn-primary" :hover-class="'btn-hover'" @click="handleInit">
                         <text class="btn-icon">⚡</text>
                         <text class="btn-label">{{ btnInit }}</text>
                     </view>
-                    <view class="action-btn btn-accent" @click="handleSave">
+                    <view class="action-btn btn-accent" :hover-class="'btn-hover'" @click="handleSave">
                         <text class="btn-icon" style="font-size: 24px;">+</text>
                         <text class="btn-label">{{ btnNewRecord }}</text>
                     </view>
                 </view>
                 <view class="action-row">
-                    <view class="action-btn btn-secondary" @click="handleQuery">
+                    <view class="action-btn btn-secondary" :hover-class="'btn-hover'" @click="handleQuery">
                         <text class="btn-icon">◎</text>
                         <text class="btn-label">{{ btnRefresh }}</text>
                     </view>
-                    <view class="action-btn btn-ghost" @click="handleClear">
+                    <view class="action-btn btn-ghost" :hover-class="'btn-hover-ghost'" @click="handleClear">
                         <text class="btn-icon">⊘</text>
                         <text class="btn-label">{{ btnClearAll }}</text>
                     </view>
                 </view>
             </view>
-            <view class="reset-strip" @click="handleReset">
+            <view class="reset-strip" :hover-class="'reset-hover'" @click="handleReset">
                 <text class="reset-label">{{ btnResetDb }}</text>
             </view>
         </view>
@@ -67,64 +67,66 @@
         <!-- #ifdef APP -->
         <scroll-view style="flex:1">
         <!-- #endif -->
-        <!-- Records Section -->
-        <view class="records-section">
-            <view class="section-header">
-                <view class="header-left">
-                    <text class="section-title">{{ listTitle }}</text>
-                    <view class="count-badge">
-                        <text class="count-num">{{ userList.length }}</text>
-                    </view>
-                </view>
-                <view class="header-line"></view>
-            </view>
-
-            <view class="records-list">
-                <view v-for="(item, index) in userList" :key="index" class="record-card">
-                    <view class="card-accent" :class="getAccentClass(item['score'] as number)"></view>
-                    <view class="card-body">
-                        <view class="user-avatar" :class="getAvatarClass(index)">
-                            <text class="avatar-letter">{{ (item['name'] as string).substring(0, 1) }}</text>
+            <!-- Records Section -->
+            <view class="records-section">
+                <view class="section-header">
+                    <view class="header-left">
+                        <text class="section-title">{{ listTitle }}</text>
+                        <view class="count-badge">
+                            <text class="count-num">{{ userList.length }}</text>
                         </view>
-                        <view class="user-details">
-                            <view class="name-row">
-                                <text class="user-name">{{ item['name'] }}</text>
-                                <text class="user-badge">#{{ item['id'] }}</text>
+                    </view>
+                    <view class="header-line"></view>
+                </view>
+
+                <view class="records-list">
+                    <view v-for="(item, index) in userList" :key="index" class="record-card">
+                        <view class="card-accent" :class="getAccentClass(item['score'] as number)"></view>
+                        <view class="card-body">
+                            <view class="user-avatar" :class="getAvatarClass(index)">
+                                <text class="avatar-letter">{{ (item['name'] as string).substring(0, 1) }}</text>
                             </view>
-                            <view class="meta-row">
-                                <view class="meta-chip">
-                                    <text class="meta-value">{{ getGenderText(item['gender'] as string) }}</text>
+                            <view class="user-details">
+                                <view class="name-row">
+                                    <text class="user-name">{{ item['name'] }}</text>
+                                    <text class="user-badge">#{{ item['id'] }}</text>
                                 </view>
-                                <view class="meta-chip">
-                                    <text class="meta-value">{{ item['age'] }}{{ ageUnit }}</text>
+                                <view class="meta-row">
+                                    <view class="meta-chip">
+                                        <text class="meta-value">{{ getGenderText(item['gender'] as string) }}</text>
+                                    </view>
+                                    <view class="meta-chip">
+                                        <text class="meta-value">{{ item['age'] }}{{ ageUnit }}</text>
+                                    </view>
                                 </view>
                             </view>
-                        </view>
-                        <view class="score-area">
-                            <text class="score-value" :class="getScoreClass(item['score'] as number)">{{ item['score'] }}</text>
-                            <text class="score-label">{{ scoreUnit }}</text>
-                        </view>
-                        <view class="delete-btn" @click="handleDelete(item['id'] as number)">
-                            <text class="delete-x">×</text>
-                        </view>
-                    </view>
-                </view>
-
-                <view v-if="userList.length == 0" class="empty-state">
-                    <view class="empty-visual">
-                        <view class="empty-ring ring-1"></view>
-                        <view class="empty-ring ring-2"></view>
-                        <view class="empty-core">
-                            <text class="empty-icon">∅</text>
+                            <view class="score-area">
+                                <text class="score-value"
+                                    :class="getScoreClass(item['score'] as number)">{{ item['score'] }}</text>
+                                <text class="score-label">{{ scoreUnit }}</text>
+                            </view>
+                            <view class="delete-btn" :hover-class="'delete-hover'"
+                                @click="handleDelete(item['id'] as number)">
+                                <text class="delete-x">×</text>
+                            </view>
                         </view>
                     </view>
-                    <text class="empty-title">{{ listEmpty }}</text>
-                    <text class="empty-hint">{{ listEmptyHint }}</text>
-                </view>
 
-                <view class="list-end"></view>
+                    <view v-if="userList.length == 0" class="empty-state">
+                        <view class="empty-visual">
+                            <view class="empty-ring ring-1"></view>
+                            <view class="empty-ring ring-2"></view>
+                            <view class="empty-core">
+                                <text class="empty-icon">∅</text>
+                            </view>
+                        </view>
+                        <text class="empty-title">{{ listEmpty }}</text>
+                        <text class="empty-hint">{{ listEmptyHint }}</text>
+                    </view>
+
+                    <view class="list-end"></view>
+                </view>
             </view>
-        </view>
         <!-- #ifdef APP -->
         </scroll-view>
         <!-- #endif -->
@@ -345,7 +347,9 @@
         flex-direction: column;
     }
 
-    .bg-layer { flex: 1; }
+    .bg-layer {
+        flex: 1;
+    }
 
     /* ========== Header ========== */
     .header-section {
@@ -410,7 +414,7 @@
     .app-subtitle {
         font-size: 12px;
         color: #71717A;
-        font-weight: 500;
+        /* font-weight: 500; */
         margin-top: 2px;
     }
 
@@ -558,12 +562,23 @@
 
     .btn-label {
         font-size: 13px;
-        font-weight: 600;
+        /* font-weight: 600; */
         color: #FFFFFF;
     }
 
     .btn-ghost .btn-label {
         color: #A1A1AA;
+    }
+
+    /* 按钮点击效果 */
+    .btn-hover {
+        opacity: 0.7;
+        transform: scale(0.98);
+    }
+
+    .btn-hover-ghost {
+        opacity: 0.6;
+        background-color: rgba(214, 111, 160, 0.25);
     }
 
     .reset-strip {
@@ -578,7 +593,12 @@
     .reset-label {
         font-size: 12px;
         color: #F87171;
-        font-weight: 600;
+        /* font-weight: 600; */
+    }
+
+    .reset-hover {
+        opacity: 0.7;
+        background-color: rgba(80, 40, 60, 0.45);
     }
 
     /* ========== Toast ========== */
@@ -608,7 +628,7 @@
     .toast-text {
         font-size: 13px;
         color: #E4E4E7;
-        font-weight: 500;
+        /* font-weight: 500; */
     }
 
     /* ========== Records Section ========== */
@@ -770,7 +790,7 @@
     .meta-value {
         font-size: 11px;
         color: #A1A1AA;
-        font-weight: 500;
+        /* font-weight: 500; */
     }
 
     .score-area {
@@ -819,6 +839,11 @@
         font-size: 20px;
         color: #FB7185;
         font-weight: 400;
+    }
+
+    .delete-hover {
+        opacity: 0.7;
+        background-color: rgba(244, 63, 94, 0.25);
     }
 
     /* ========== Empty State ========== */
@@ -874,7 +899,7 @@
 
     .empty-title {
         font-size: 16px;
-        font-weight: 600;
+        /* font-weight: 600; */
         color: #FAFAFA;
         margin-bottom: 8px;
     }

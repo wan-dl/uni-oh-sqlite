@@ -94,101 +94,40 @@ export function saveUser(
     score: number
 ): boolean {
     const now = new Date().toISOString()
-
-    // #ifdef APP-ANDROID
     const args: SqlArgs = [name, age, gender, score, now]
     return db.execute(SQL_INSERT, args)
-    // #endif
-
-    // #ifdef APP-IOS
-    const data: UTSJSONObject = {
-        name: name,
-        age: age,
-        gender: gender,
-        score: score,
-        created_at: now
-    }
-    return db.insert(data)
-    // #endif
-
-    // #ifndef APP
-    return false
-    // #endif
 }
 
 /**
  * 查询用户列表
  */
 export function getUsers(limit: number = 50): UTSJSONObject[] {
-    // #ifdef APP-ANDROID
     const args: SqlArgs = [limit]
     return db.query(SQL_SELECT_ALL, args)
-    // #endif
-
-    // #ifdef APP-IOS
-    const list = db.query()
-    return list.slice(0, limit)
-    // #endif
-
-    // #ifndef APP
-    return []
-    // #endif
 }
 
 /**
  * 根据ID查询用户
  */
 export function getUserById(id: number): UTSJSONObject | null {
-    // #ifdef APP-ANDROID
     const args: SqlArgs = [id]
     const results = db.query(SQL_SELECT_BY_ID, args)
     return results.length > 0 ? results[0] : null
-    // #endif
-
-    // #ifdef APP-IOS
-    const list = db.query()
-    const filtered = list.filter((item: UTSJSONObject): boolean => item['id'] == id)
-    return filtered.length > 0 ? filtered[0] : null
-    // #endif
-
-    // #ifndef APP
-    return null
-    // #endif
 }
 
 /**
  * 删除用户
  */
 export function deleteUser(id: number): boolean {
-    // #ifdef APP-ANDROID
     const args: SqlArgs = [id]
-    return db.execute(SQL_DELETE_BY_ID, args)
-    // #endif
-
-    // #ifdef APP-IOS
-    return db.delete(id)
-    // #endif
-
-    // #ifndef APP
-    return false
-    // #endif
+    return db.delete(SQL_DELETE_BY_ID, args)
 }
 
 /**
  * 清空用户列表
  */
 export function clearUsers(): boolean {
-    // #ifdef APP-ANDROID
     return db.clear(TABLE_NAME)
-    // #endif
-
-    // #ifdef APP-IOS
-    return db.clear()
-    // #endif
-
-    // #ifndef APP
-    return false
-    // #endif
 }
 
 /**

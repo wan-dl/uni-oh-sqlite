@@ -1,30 +1,14 @@
 import Context from "android.content.Context";
-import SQLiteDatabase from "android.database.sqlite.SQLiteDatabase";
-import Cursor from "android.database.Cursor";
-
-// 数据库缓存
-const databases = new Map<string, SQLiteDatabase>()
-
-/**
- * 获取数据库路径
- */
-function getDatabasePath(name: string): string {
-    const context = UTSAndroid.getAppContext() as Context
-    return context.getDatabasePath(name + ".db").getAbsolutePath()
-}
+import MutableList from "kotlin.collections.MutableList";
+import MutableMap from "kotlin.collections.MutableMap";
 
 /**
  * 打开数据库
  */
 export function openDatabase(name: string): boolean {
     try {
-        if (databases.has(name)) {
-            return true
-        }
-        const path = getDatabasePath(name)
-        const db = SQLiteDatabase.openOrCreateDatabase(path, null)
-        databases.set(name, db)
-        return true
+        const context = UTSAndroid.getAppContext() as Context
+        return SqliteHelper.openDatabase(context, name)
     } catch (e) {
         console.error("openDatabase error:", e)
         return false
@@ -36,12 +20,7 @@ export function openDatabase(name: string): boolean {
  */
 export function closeDatabase(name: string): boolean {
     try {
-        const db = databases.get(name)
-        if (db != null) {
-            db.close()
-            databases.delete(name)
-        }
-        return true
+        return SqliteHelper.closeDatabase(name)
     } catch (e) {
         console.error("closeDatabase error:", e)
         return false
@@ -56,34 +35,43 @@ export function executeSql(name: string, sql: string, args: (string | number | n
         success: false,
         rowsAffected: 0
     }
-    
+
     try {
-        const db = databases.get(name)
-        if (db == null) {
-            result["error"] = "Database not opened"
-            return result
-        }
-        
-        if (args.length > 0) {
-            const bindArgs: Array<String> = []
-            for (let i = 0; i < args.length; i++) {
-                const arg = args[i]
-                if (arg == null) {
-                    bindArgs.push("")
-                } else {
-                    bindArgs.push(arg.toString())
-                }
+        const bindArgs: Array<String> = []
+        for (let i = 0; i < args.length; i++) {
+            const arg = args[i]
+            if (arg == null) {
+                bindArgs.push("")
+            } else {
+                bindArgs.push(arg.toString())
             }
-            db.execSQL(sql, bindArgs.toTypedArray())
-        } else {
-            db.execSQL(sql)
         }
-        
-        result["success"] = true
-        result["rowsAffected"] = 1
+
+        const kotlinResult = SqliteHelper.executeSql(name, sql, bindArgs.toTypedArray())
+
+        // 安全获取 success 字段
+        const successVal = kotlinResult.get("success")
+        if (successVal != null) {
+            result["success"] = successVal as boolean
+        }
+
+        // 安全获取 rowsAffected 字段
+        const rowsVal = kotlinResult.get("rowsAffected")
+        if (rowsVal != null) {
+            result["rowsAffected"] = rowsVal as number
+        }
+
+        // 安全获取 error 字段
+        if (kotlinResult.containsKey("error")) {
+            const errorVal = kotlinResult.get("error")
+            if (errorVal != null) {
+                result["error"] = errorVal.toString()
+            }
+        }
         return result
     } catch (e) {
-        result["error"] = (e as Error).message
+        const err = e as Exception
+        result["error"] = err.message != null ? err.message : "Unknown error"
         return result
     }
 }
@@ -96,14 +84,8 @@ export function querySql(name: string, sql: string, args: (string | number | nul
         success: false,
         data: [] as UTSJSONObject[]
     }
-    
+
     try {
-        const db = databases.get(name)
-        if (db == null) {
-            result["error"] = "Database not opened"
-            return result
-        }
-        
         let selectionArgs: Array<String> | null = null
         if (args.length > 0) {
             const tempArgs: Array<String> = []
@@ -113,38 +95,47 @@ export function querySql(name: string, sql: string, args: (string | number | nul
             }
             selectionArgs = tempArgs
         }
-        
-        const cursor = db.rawQuery(sql, selectionArgs != null ? selectionArgs.toTypedArray() : null)
-        const data: UTSJSONObject[] = []
-        
-        if (cursor.moveToFirst()) {
-            do {
+
+        const kotlinResult = SqliteHelper.querySql(name, sql, selectionArgs != null ? selectionArgs.toTypedArray() : null)
+
+        // 安全获取 success 字段
+        const successVal = kotlinResult.get("success")
+        if (successVal != null) {
+            result["success"] = successVal as boolean
+        }
+
+        // 安全获取 error 字段
+        if (kotlinResult.containsKey("error")) {
+            const errorVal = kotlinResult.get("error")
+            if (errorVal != null) {
+                result["error"] = errorVal.toString()
+            }
+        }
+
+        // 安全获取并转换 data 字段
+        const dataVal = kotlinResult.get("data")
+        if (dataVal != null) {
+            // Kotlin 返回的是 MutableList<MutableMap<String, Any?>>
+            const kotlinData = dataVal as MutableList<MutableMap<String, any>>
+            const data: UTSJSONObject[] = []
+            // 使用 Int 类型遍历，size 是属性不是方法
+            for (let i: Int = 0; i < kotlinData.size; i++) {
+                const kotlinRow = kotlinData.get(i)
                 const row: UTSJSONObject = {}
-                const columnCount: Int = cursor.getColumnCount()
-                for (let i: Int = 0; i < columnCount; i++) {
-                    const columnName = cursor.getColumnName(i)
-                    const columnType: Int = cursor.getType(i)
-                    
-                    if (columnType == Cursor.FIELD_TYPE_NULL) {
-                        row[columnName] = null
-                    } else if (columnType == Cursor.FIELD_TYPE_INTEGER) {
-                        row[columnName] = cursor.getLong(i)
-                    } else if (columnType == Cursor.FIELD_TYPE_FLOAT) {
-                        row[columnName] = cursor.getDouble(i)
-                    } else {
-                        row[columnName] = cursor.getString(i)
-                    }
+                // 使用 entries 遍历 MutableMap
+                const entries = kotlinRow.entries
+                for (const entry of entries) {
+                    row[entry.key] = entry.value
                 }
                 data.push(row)
-            } while (cursor.moveToNext())
+            }
+            result["data"] = data
         }
-        cursor.close()
-        
-        result["success"] = true
-        result["data"] = data
+
         return result
     } catch (e) {
-        result["error"] = (e as Error).message
+        const err = e as Exception
+        result["error"] = err.message != null ? err.message : "Unknown error"
         return result
     }
 }
@@ -153,6 +144,5 @@ export function querySql(name: string, sql: string, args: (string | number | nul
  * 检查数据库是否已打开
  */
 export function isOpen(name: string): boolean {
-    const db = databases.get(name)
-    return db != null && db.isOpen()
+    return SqliteHelper.isOpen(name)
 }

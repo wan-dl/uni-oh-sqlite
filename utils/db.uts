@@ -1,7 +1,6 @@
 /**
  * 通用数据库操作模块
- * Android: SQLite
- * iOS: uni.setStorage (临时方案)
+ * Android & iOS: SQLite (通过 oh-sqlite 插件)
  *
  * 本模块提供与业务无关的数据库操作能力
  * 具体表定义和业务操作请在 tables/ 目录下创建对应模块
@@ -15,7 +14,7 @@
  * const users = db.query('SELECT * FROM users')
  */
 
-// #ifdef APP-ANDROID
+// #ifdef APP
 import { openDatabase, closeDatabase, executeSql, querySql, isOpen } from '@/uni_modules/oh-sqlite'
 // #endif
 
@@ -39,9 +38,9 @@ export interface DatabaseConfig {
 export interface TableDefinition {
     /** 表名 */
     tableName: string
-    /** 建表SQL (Android) */
+    /** 建表SQL */
     createTableSql: string
-    /** iOS存储键名 */
+    /** 存储键名 (兼容旧代码) */
     storageKey: string
 }
 
@@ -52,70 +51,44 @@ export class Database {
     private dbName: string
     private storageKey: string
     private autoIncrement: boolean
-    
-    // #ifdef APP-ANDROID
+
+    // #ifdef APP
     private dbInitialized: boolean = false
     // #endif
-    
-    // #ifdef APP-IOS
-    private nextId: number = 1
-    // #endif
-    
+
     /**
      * 构造函数
      * @param dbName 数据库名称
-     * @param storageKey 存储键名 (iOS使用)
-     * @param autoIncrement 是否自动递增ID (iOS使用)
+     * @param storageKey 存储键名 (兼容旧代码)
+     * @param autoIncrement 是否自动递增ID
      */
     constructor(dbName: string, storageKey: string, autoIncrement: boolean = true) {
         this.dbName = dbName
         this.storageKey = storageKey
         this.autoIncrement = autoIncrement
-        
-        // #ifdef APP-IOS
-        if (this.autoIncrement) {
-            this.initNextId()
-        }
-        // #endif
     }
-    
-    // #ifdef APP-IOS
+
     /**
-     * 初始化下一个ID (仅iOS)
-     */
-    private initNextId(): void {
-        const stored = uni.getStorageSync(this.storageKey)
-        if (stored != null && stored != '') {
-            const list = JSON.parse(stored) as UTSJSONObject[]
-            if (list.length > 0) {
-                const lastItem = list[0]
-                this.nextId = (lastItem['id'] as number) + 1
-            }
-        }
-    }
-    // #endif
-    
-    /**
-     * 确保数据库已打开 (仅Android)
+     * 确保数据库已打开
      */
     private ensureDatabase(): boolean {
-        // #ifdef APP-ANDROID
+        // #ifdef APP
         if (this.dbInitialized && isOpen(this.dbName)) {
             return true
         }
         return this.openDb()
         // #endif
-        
-        // #ifndef APP-ANDROID
-        return true
+
+        // #ifndef APP
+        return false
         // #endif
     }
-    
+
     /**
-     * 打开数据库 (仅Android)
+     * 打开数据库
      */
     private openDb(): boolean {
-        // #ifdef APP-ANDROID
+        // #ifdef APP
         if (!openDatabase(this.dbName)) {
             console.error(`Failed to open database: ${this.dbName}`)
             return false
@@ -123,225 +96,146 @@ export class Database {
         this.dbInitialized = true
         return true
         // #endif
-        
-        // #ifndef APP-ANDROID
-        return true
+
+        // #ifndef APP
+        return false
         // #endif
     }
-    
+
     /**
      * 初始化数据库表
      * @param createTableSql 建表SQL语句
      */
     init(createTableSql: string): boolean {
-        // #ifdef APP-ANDROID
+        // #ifdef APP
         if (!this.ensureDatabase()) {
             return false
         }
-        
+
         const emptyArgs: (string | number | null)[] = []
+        // console.log("[init] --------", this.dbName, createTableSql, emptyArgs);
         const result = executeSql(this.dbName, createTableSql, emptyArgs)
+        // console.log("[result] --------", result);
         const success = result['success']
         if (success != true) {
             console.error('Failed to create table:', result['error'])
             return false
         }
-        
+
         console.log(`Database ${this.dbName} initialized`)
         return true
         // #endif
-        
-        // #ifdef APP-IOS
-        console.log(`iOS storage ${this.storageKey} initialized`)
-        return true
-        // #endif
-        
+
         // #ifndef APP
         console.warn('Only works on APP platform')
         return false
         // #endif
     }
-    
+
     /**
-     * 执行SQL语句 (Android) 或保存数据 (iOS)
+     * 执行SQL语句
      * @param sql SQL语句
      * @param args 参数数组
      */
     execute(sql: string, args: (string | number | null)[] = []): boolean {
-        // #ifdef APP-ANDROID
+        // #ifdef APP
         if (!this.ensureDatabase()) {
+            console.error('execute: database not ready')
             return false
         }
-        
+
         const result = executeSql(this.dbName, sql, args)
+        // console.log('[execute] result:', JSON.stringify(result));
+        if (result['success'] != true) {
+            console.error('execute error:', result['error'])
+        }
         return result['success'] == true
         // #endif
-        
-        // #ifndef APP-ANDROID
-        console.warn('execute() only works on Android, use insert() for iOS')
-        return false
-        // #endif
-    }
-    
-    /**
-     * 插入数据
-     * @param data 数据对象
-     */
-    insert(data: UTSJSONObject): boolean {
-        // #ifdef APP-ANDROID
-        console.warn('insert() with object is for iOS, use execute() for Android')
-        return false
-        // #endif
-        
-        // #ifdef APP-IOS
-        if (this.autoIncrement) {
-            data['id'] = this.nextId
-            this.nextId++
-        }
-        
-        let list: UTSJSONObject[] = []
-        const stored = uni.getStorageSync(this.storageKey)
-        if (stored != null && stored != '') {
-            list = JSON.parse(stored) as UTSJSONObject[]
-        }
-        list.unshift(data)
-        
-        uni.setStorageSync(this.storageKey, JSON.stringify(list))
-        return true
-        // #endif
-        
+
         // #ifndef APP
+        console.warn('execute() only works on APP platform')
         return false
         // #endif
     }
-    
+
     /**
      * 查询数据
-     * @param sql SQL语句 (Android) 或 null (iOS返回全部)
+     * @param sql SQL语句
      * @param args 参数数组
      */
     query(sql: string = '', args: (string | number | null)[] = []): UTSJSONObject[] {
-        // #ifdef APP-ANDROID
+        // #ifdef APP
         if (!this.ensureDatabase()) {
+            console.error('query: database not ready')
             return []
         }
-        
-        const result = querySql(this.dbName, sql, args)
+        // console.log(`[query] SQL: ${sql}, args: ${JSON.stringify(args)}`);
+        const result = querySql(this.dbName, sql, args);
         if (result['success'] == true) {
-            return result['data'] as UTSJSONObject[]
+            const data = result['data'] as UTSJSONObject[]
+            return data
         }
+        console.error('query error:', result['error'])
         return []
         // #endif
-        
-        // #ifdef APP-IOS
-        const stored = uni.getStorageSync(this.storageKey)
-        if (stored == null || stored == '') {
-            return []
-        }
-        return JSON.parse(stored) as UTSJSONObject[]
-        // #endif
-        
+
         // #ifndef APP
         return []
         // #endif
     }
-    
-    /**
-     * 根据条件查询 (iOS)
-     * @param filter 过滤函数
-     */
-    queryWhere(filter: (item: UTSJSONObject) => boolean): UTSJSONObject[] {
-        // #ifdef APP-IOS
-        const list = this.query()
-        return list.filter(filter)
-        // #endif
-        
-        // #ifndef APP-IOS
-        console.warn('queryWhere() only works on iOS, use query() with SQL for Android')
-        return []
-        // #endif
-    }
-    
+
     /**
      * 删除数据
-     * @param id 记录ID (iOS) 或 SQL语句 (Android)
-     * @param args SQL参数 (仅Android)
+     * @param sql SQL语句 (如 "DELETE FROM users WHERE id = ?")
+     * @param args SQL参数
      */
-    delete(id: number | string, args: (string | number | null)[] = []): boolean {
-        // #ifdef APP-ANDROID
+    delete(sql: string, args: (string | number | null)[] = []): boolean {
+        // #ifdef APP
         if (!this.ensureDatabase()) {
             return false
         }
-        
-        const sql = typeof id === 'string' ? id : `DELETE FROM table WHERE id = ?`
-        let deleteArgs: (string | number | null)[]
-        if (typeof id === 'string') {
-            deleteArgs = args
-        } else {
-            deleteArgs = [id]
-        }
-        const result = executeSql(this.dbName, sql, deleteArgs)
+
+        const result = executeSql(this.dbName, sql, args)
         return result['success'] == true
         // #endif
-        
-        // #ifdef APP-IOS
-        if (typeof id !== 'number') {
-            console.error('iOS delete requires numeric id')
-            return false
-        }
-        
-        const stored = uni.getStorageSync(this.storageKey)
-        if (stored == null || stored == '') {
-            return false
-        }
-        let list = JSON.parse(stored) as UTSJSONObject[]
-        list = list.filter((item: UTSJSONObject): boolean => item['id'] != id)
-        uni.setStorageSync(this.storageKey, JSON.stringify(list))
-        return true
-        // #endif
-        
+
         // #ifndef APP
         return false
         // #endif
     }
-    
+
     /**
-     * 清空所有数据
-     * @param tableName 表名 (仅Android)
+     * 清空表数据
+     * @param tableName 表名
      */
-    clear(tableName: string = ''): boolean {
-        // #ifdef APP-ANDROID
+    clear(tableName: string): boolean {
+        // #ifdef APP
         if (!this.ensureDatabase()) {
             return false
         }
-        
-        const sql = tableName != '' ? `DELETE FROM ${tableName}` : 'DELETE FROM table'
+
+        const sql = `DELETE FROM ${tableName}`
         const emptyArgs: (string | number | null)[] = []
         const result = executeSql(this.dbName, sql, emptyArgs)
         return result['success'] == true
         // #endif
-        
-        // #ifdef APP-IOS
-        uni.removeStorageSync(this.storageKey)
-        return true
-        // #endif
-        
+
         // #ifndef APP
         return false
         // #endif
     }
-    
+
     /**
-     * 重置数据库
-     * @param tableName 表名 (仅Android)
-     * @param createTableSql 重新建表的SQL (仅Android)
+     * 重置数据库表
+     * @param tableName 表名
+     * @param createTableSql 重新建表的SQL
      */
-    reset(tableName: string = '', createTableSql: string = ''): boolean {
-        // #ifdef APP-ANDROID
+    reset(tableName: string, createTableSql: string = ''): boolean {
+        // #ifdef APP
         if (!this.ensureDatabase()) {
             return false
         }
-        const dropSql = tableName != '' ? `DROP TABLE IF EXISTS ${tableName}` : 'DROP TABLE IF EXISTS table'
+        const dropSql = `DROP TABLE IF EXISTS ${tableName}`
         const emptyArgs: (string | number | null)[] = []
         executeSql(this.dbName, dropSql, emptyArgs)
         if (createTableSql != '') {
@@ -349,31 +243,25 @@ export class Database {
         }
         return true
         // #endif
-        
-        // #ifdef APP-IOS
-        uni.removeStorageSync(this.storageKey)
-        this.nextId = 1
-        return true
-        // #endif
-        
+
         // #ifndef APP
         return false
         // #endif
     }
 
     /**
-     * 关闭数据库 (仅Android)
+     * 关闭数据库
      */
     close(): boolean {
-        // #ifdef APP-ANDROID
+        // #ifdef APP
         const result = closeDatabase(this.dbName)
         if (result) {
             this.dbInitialized = false
         }
         return result
         // #endif
-        
-        // #ifndef APP-ANDROID
+
+        // #ifndef APP
         return true
         // #endif
     }
