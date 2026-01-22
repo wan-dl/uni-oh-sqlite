@@ -1,22 +1,58 @@
 {
-    "id": "oh-sqlite",
-    "displayName": "SQLite数据库插件",
-    "version": "1.0.0",
-    "description": "原生SQLite数据库操作，支持Android和iOS",
-    "keywords": ["sqlite", "database"],
-    "uni_modules": {
-        "type": "uts",
-        "dependencies": [],
-        "uni-ext-api": {
-            "uni": ""
-        },
-        "platforms": {
-            "app-android": {
-                "minVersion": "21"
-            },
-            "app-ios": {
-                "minVersion": "12.0"
-            }
-        }
+  "id": "oh-sqlite",
+  "displayName": "SQLite数据库插件",
+  "version": "1.0.0",
+  "description": "原生SQLite数据库操作，支持Android和iOS",
+  "keywords": [
+    "sqlite",
+    "database"
+  ],
+  "uni_modules": {
+    "type": "uts",
+    "dependencies": [],
+    "uni-ext-api": {
+      "uni": ""
+    },
+    "platforms": {
+      "app-android": {
+        "minVersion": "21"
+      },
+      "app-ios": {
+        "minVersion": "12.0"
+      },
+      "cloud": {
+        "tcb": "-",
+        "aliyun": "-",
+        "alipay": "-"
+      }
     }
+  },
+  "dcloudext": {
+    "type": "",
+    "sale": {
+      "regular": {
+        "price": "0.00"
+      },
+      "sourcecode": {
+        "price": "0.00"
+      }
+    },
+    "contact": {
+      "qq": ""
+    },
+    "declaration": {
+      "ads": "",
+      "data": "",
+      "permissions": ""
+    },
+    "npmurl": "",
+    "darkmode": "-",
+    "i18n": "-",
+    "widescreen": "-"
+  },
+  "engines": {
+    "HBuilderX": "^3.1.0",
+    "uni-app": "^3.1.0",
+    "uni-app-x": "^3.1.0"
+  }
 }

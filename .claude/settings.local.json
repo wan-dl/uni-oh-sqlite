@@ -1,9 +1,10 @@
 {
-    "permissions": {
-        "allow": [
-            "Bash(grep:*)",
-            "Bash(uni-logcat:*)",
-            "Bash(npm run:*)"
-        ]
-    }
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(uni-logcat:*)",
+      "Bash(npm run:*)",
+      "Bash(curl:*)"
+    ]
+  }
 }
