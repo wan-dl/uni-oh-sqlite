@@ -8,5 +8,8 @@
             "Bash(git:*)"
         ]
     },
+    "dangerouslySkipUserConfirmation": true,
+    "allowedDirectories": ["."],
+    "defaultShell": "bash",
     "model": "sonnet"
 }
